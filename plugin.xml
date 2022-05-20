@@ -1,0 +1,20 @@
+<library path="src">
+  <class name="CTR Joint Plugin" type="rqt_ctr.ctr_module.CTRPlugin" base_class_type="rqt_gui_py::Plugin">
+    <description>
+	    Plugin to send joint commands to robot with rqt.
+    </description>
+    <qtgui>
+      <!-- optional grouping...
+      <group>
+        <label>Group</label>
+      </group>
+      <group>
+        <label>Subgroup</label>
+      </group>
+      -->
+      <label>CTR Plugin</label>
+      <icon type="theme">system-help</icon>
+      <statustip>CTR plugin for joint control.</statustip>
+    </qtgui>
+  </class>
+</library>
