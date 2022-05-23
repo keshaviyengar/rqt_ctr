@@ -139,14 +139,15 @@ class CTRPlugin(Plugin):
             self._widget.beta_1_slider.value(),
             self._widget.alpha_1_slider.value())
 
-    def _send_jointstate(self, beta_1, alpha_1):
+    def _send_jointstate(self, beta_0, alpha_0):
         if self._publisher is None:
             return
-        # publish JointState as (beta1,beta2,beta3,alpha1,alpha2,alpha3), reading from each slider the new linear or
-        # angular position and updating it to the correct tube parameter
+        # publish JointState as (beta_0,beta_1,beta_2,alpha_0,alpha_1,alpha_2),
+        # reading from each slider the new linear or angular position and updating it to the correct tube parameter
         jointstate = JointState()
         jointstate.position = np.zeros(6)
-        jointstate.position[2] = beta_1
+        jointstate.position[0] = beta_0
+        # TODO: Publish other joint values
 
         self.zero_cmd_sent = False
         self._publisher.publish(jointstate)
