@@ -3,7 +3,7 @@ import os
 import rospkg
 
 from sensor_msgs.msg import JointState
-from geometry_msgs.msg import Twist
+from std_srvs.srv import Trigger
 import rospy
 from python_qt_binding import loadUi
 from python_qt_binding.QtCore import Qt, QTimer, Slot
@@ -13,7 +13,9 @@ from rqt_gui_py.plugin import Plugin
 
 import numpy as np
 
+
 # TODO: Big stop sign to cut the controllers incase something goes wrong
+# TODO: Add tube lengths here from ros parameter server
 
 
 class CTRPlugin(Plugin):
@@ -22,19 +24,19 @@ class CTRPlugin(Plugin):
         self.setObjectName('CTRPlugin')
 
         self.tr_scale = 10
-        self.rot_scale = 10
+        self.rot_scale = 1000
 
-        beta_1_range = [-100, -6]
-        beta_1_init_value = -6.0
-        beta_2_range = [-90, -4]
-        beta_2_init_value = -4.0
-        beta_3_range = [-50, -2]
-        beta_3_init_value = -2.0
-        alpha_1_range = [-3.0, 3.0]
+        beta_1_range = [-300.0, -6]
+        beta_1_init_value = -214.0
+        beta_2_range = [-150.0, -4]
+        beta_2_init_value = -102.0
+        beta_3_range = [-60, -2]
+        beta_3_init_value = -4.0
+        alpha_1_range = [-3.14, 3.14]
         alpha_1_init_value = 0
-        alpha_2_range = [-3.0, 3.0]
+        alpha_2_range = [-3.14, 3.14]
         alpha_2_init_value = 0
-        alpha_3_range = [-3.0, 3.0]
+        alpha_3_range = [-3.14, 3.14]
         alpha_3_init_value = 0
 
         # Create QWidget
@@ -70,24 +72,27 @@ class CTRPlugin(Plugin):
         # beta1
         self._initialize_slider(self._widget.beta_1_slider, self._widget.min_beta_1_label,
                                 self._widget.max_beta_1_label, self._widget.current_beta_1_label, beta_1_range, 1.0,
-                                beta_1_init_value, 'mm')
+                                beta_1_init_value, 'mm', self.tr_scale)
         # beta2
         self._initialize_slider(self._widget.beta_2_slider, self._widget.min_beta_2_label,
                                 self._widget.max_beta_2_label, self._widget.current_beta_2_label, beta_2_range, 1.0,
-                                beta_2_init_value, 'mm')
+                                beta_2_init_value, 'mm', self.tr_scale)
         # beta3
         self._initialize_slider(self._widget.beta_3_slider, self._widget.min_beta_3_label,
                                 self._widget.max_beta_3_label, self._widget.current_beta_3_label, beta_3_range, 1.0,
-                                beta_3_init_value, 'mm')
+                                beta_3_init_value, 'mm', self.tr_scale)
         # alpha1
         self._initialize_slider(self._widget.alpha_1_slider, self._widget.min_alpha_1, self._widget.max_alpha_1,
-                                self._widget.current_alpha_1_label, alpha_1_range, 1.0, alpha_1_init_value, 'rad')
+                                self._widget.current_alpha_1_label, alpha_1_range, 1.0, alpha_1_init_value, 'rad',
+                                self.rot_scale)
         # alpha2
         self._initialize_slider(self._widget.alpha_2_slider, self._widget.min_alpha_2, self._widget.max_alpha_2,
-                                self._widget.current_alpha_2_label, alpha_2_range, 1.0, alpha_2_init_value, 'rad')
+                                self._widget.current_alpha_2_label, alpha_2_range, 1.0, alpha_2_init_value, 'rad',
+                                self.rot_scale)
         # alpha3
         self._initialize_slider(self._widget.alpha_3_slider, self._widget.min_alpha_3, self._widget.max_alpha_3,
-                                self._widget.current_alpha_3_label, alpha_3_range, 1.0, alpha_3_init_value, 'rad')
+                                self._widget.current_alpha_3_label, alpha_3_range, 1.0, alpha_3_init_value, 'rad',
+                                self.rot_scale)
 
         # When moving the sliders for beta_1 and alpha_1 update the value printed and sent a msg to publish
         self._widget.beta_1_slider.valueChanged.connect(
@@ -133,6 +138,13 @@ class CTRPlugin(Plugin):
         self._widget.decrease_alpha_3_push_button.pressed.connect(
             self._on_decrease_alpha_3_pressed)
 
+        #rospy.wait_for_service("/read_joint_states")
+        #read_joints = rospy.ServiceProxy("/read_joint_states", Trigger)
+        #try:
+        #    resp = read_joints()
+        #except rospy.ServiceException as exc:
+        #    print("Service did not process request" + str(exc))
+
     @Slot(str)
     def _on_topic_changed(self, topic):
         topic = str(topic)
@@ -150,106 +162,90 @@ class CTRPlugin(Plugin):
 
     def _on_beta_1_slider_changed(self):
         self._widget.current_beta_1_label.setText(
-            '%0.2f mm' % (self._widget.beta_1_slider.value()))
+            '%0.2f mm' % (self._widget.beta_1_slider.value() / self.tr_scale))
         self._on_parameter_changed()
 
     def _on_beta_2_slider_changed(self):
         self._widget.current_beta_2_label.setText(
-            '%0.2f mm' % (self._widget.beta_2_slider.value()))
+            '%0.2f mm' % (self._widget.beta_2_slider.value() / self.tr_scale))
         self._on_parameter_changed()
 
     def _on_beta_3_slider_changed(self):
         self._widget.current_beta_3_label.setText(
-            '%0.2f mm' % (self._widget.beta_3_slider.value()))
+            '%0.2f mm' % (self._widget.beta_3_slider.value() / self.tr_scale))
         self._on_parameter_changed()
 
     def _on_alpha_1_slider_changed(self):
         self._widget.current_alpha_1_label.setText(
-            '%0.2f rad' % (self._widget.alpha_1_slider.value()))
+            '%0.2f rad' % (self._widget.alpha_1_slider.value() / self.rot_scale))
         self._on_parameter_changed()
 
     def _on_alpha_2_slider_changed(self):
         self._widget.current_alpha_2_label.setText(
-            '%0.2f rad' % (self._widget.alpha_2_slider.value()))
+            '%0.2f rad' % (self._widget.alpha_2_slider.value() / self.rot_scale))
         self._on_parameter_changed()
 
     def _on_alpha_3_slider_changed(self):
         self._widget.current_alpha_3_label.setText(
-            '%0.2f rad' % (self._widget.alpha_3_slider.value()))
+            '%0.2f rad' % (self._widget.alpha_3_slider.value() / self.rot_scale))
         self._on_parameter_changed()
 
     def _on_increase_beta_1_pressed(self):
         self._widget.beta_1_slider.setValue(
-            self._widget.beta_1_slider.value() + self._widget.beta_1_slider.pageStep())
+            self._widget.beta_1_slider.value() + self._widget.beta_1_slider.singleStep() * 10)
 
     def _on_increase_beta_2_pressed(self):
         self._widget.beta_2_slider.setValue(
-            self._widget.beta_2_slider.value() + self._widget.beta_2_slider.pageStep())
+            self._widget.beta_2_slider.value() + self._widget.beta_2_slider.singleStep() * 10)
 
     def _on_increase_beta_3_pressed(self):
         self._widget.beta_3_slider.setValue(
-            self._widget.beta_3_slider.value() + self._widget.beta_3_slider.pageStep())
+            self._widget.beta_3_slider.value() + self._widget.beta_3_slider.singleStep() * 10)
 
     def _on_decrease_beta_1_pressed(self):
         self._widget.beta_1_slider.setValue(
-            self._widget.beta_1_slider.value() - self._widget.beta_1_slider.pageStep())
+            self._widget.beta_1_slider.value() - self._widget.beta_1_slider.singleStep() * 10)
 
     def _on_decrease_beta_2_pressed(self):
         self._widget.beta_2_slider.setValue(
-            self._widget.beta_2_slider.value() - self._widget.beta_2_slider.pageStep())
+            self._widget.beta_2_slider.value() - self._widget.beta_2_slider.singleStep() * 10)
 
     def _on_decrease_beta_3_pressed(self):
         self._widget.beta_3_slider.setValue(
-            self._widget.beta_3_slider.value() - self._widget.beta_3_slider.pageStep())
+            self._widget.beta_3_slider.value() - self._widget.beta_3_slider.singleStep() * 10)
 
     def _on_increase_alpha_1_pressed(self):
         self._widget.alpha_1_slider.setValue(
-            self._widget.alpha_1_slider.value() + self._widget.alpha_1_slider.pageStep())
+            self._widget.alpha_1_slider.value() + self._widget.alpha_1_slider.singleStep())
 
     def _on_increase_alpha_2_pressed(self):
         self._widget.alpha_2_slider.setValue(
-            self._widget.alpha_2_slider.value() + self._widget.alpha_2_slider.pageStep())
+            self._widget.alpha_2_slider.value() + self._widget.alpha_2_slider.singleStep())
 
     def _on_increase_alpha_3_pressed(self):
         self._widget.alpha_3_slider.setValue(
-            self._widget.alpha_3_slider.value() + self._widget.alpha_3_slider.pageStep())
+            self._widget.alpha_3_slider.value() + self._widget.alpha_3_slider.singleStep())
 
     def _on_decrease_alpha_1_pressed(self):
         self._widget.alpha_1_slider.setValue(
-            self._widget.alpha_1_slider.value() - self._widget.alpha_1_slider.pageStep())
+            self._widget.alpha_1_slider.value() - self._widget.alpha_1_slider.singleStep())
 
     def _on_decrease_alpha_2_pressed(self):
         self._widget.alpha_2_slider.setValue(
-            self._widget.alpha_2_slider.value() - self._widget.alpha_2_slider.pageStep())
+            self._widget.alpha_2_slider.value() - self._widget.alpha_2_slider.singleStep())
 
     def _on_decrease_alpha_3_pressed(self):
         self._widget.alpha_3_slider.setValue(
-            self._widget.alpha_3_slider.value() - self._widget.alpha_3_slider.pageStep())
-
-    def _on_strong_increase_beta_1_pressed(self):
-        self._widget.beta_1_slider.setValue(
-            self._widget.beta_1_slider.value() + self._widget.beta_1_slider.pageStep())
-
-    def _on_strong_decrease_beta_1_pressed(self):
-        self._widget.beta_1_slider.setValue(
-            self._widget.beta_1_slider.value() - self._widget.beta_1_slider.pageStep())
-
-    def _on_strong_increase_alpha_1_pressed(self):
-        self._widget.alpha_1_slider.setValue(
-            self._widget.alpha_1_slider.value() + self._widget.alpha_1_slider.pageStep())
-
-    def _on_strong_decrease_alpha_1_pressed(self):
-        self._widget.alpha_1_slider.setValue(
-            self._widget.alpha_1_slider.value() - self._widget.alpha_1_slider.pageStep())
+            self._widget.alpha_3_slider.value() - self._widget.alpha_3_slider.singleStep())
 
     def _on_parameter_changed(self):
         self._send_jointstate(
-            self._widget.beta_1_slider.value(),
-            self._widget.beta_2_slider.value(),
-            self._widget.beta_3_slider.value(),
-            self._widget.alpha_1_slider.value(),
-            self._widget.alpha_2_slider.value(),
-            self._widget.alpha_3_slider.value(), )
+            self._widget.beta_1_slider.value() / self.tr_scale,
+            self._widget.beta_2_slider.value() / self.tr_scale,
+            self._widget.beta_3_slider.value() / self.tr_scale,
+            self._widget.alpha_1_slider.value() / self.rot_scale,
+            self._widget.alpha_2_slider.value() / self.rot_scale,
+            self._widget.alpha_3_slider.value() / self.rot_scale)
 
     def _send_jointstate(self, beta_0, beta_1, beta_2, alpha_0, alpha_1, alpha_2):
         if self._publisher is None:
@@ -269,23 +265,30 @@ class CTRPlugin(Plugin):
         self._publisher.publish(jointstate)
 
     def _jointstate_callback(self, msg):
-        self._set_slider_value(self._widget.beta_1_slider, self._widget.current_beta_1_label, msg.position[0], 'mm')
-        self._set_slider_value(self._widget.beta_2_slider, self._widget.current_beta_2_label, msg.position[1], 'mm')
-        self._set_slider_value(self._widget.beta_3_slider, self._widget.current_beta_3_label, msg.position[2], 'mm')
-        self._set_slider_value(self._widget.alpha_1_slider, self._widget.current_alpha_1_label, msg.position[0], 'rad')
-        self._set_slider_value(self._widget.alpha_2_slider, self._widget.current_alpha_2_label, msg.position[1], 'rad')
-        self._set_slider_value(self._widget.alpha_3_slider, self._widget.current_alpha_3_label, msg.position[2], 'rad')
+        self._set_slider_value(self._widget.beta_1_slider, self._widget.current_beta_1_label, msg.position[0], 'mm',
+                               self.tr_scale)
+        self._set_slider_value(self._widget.beta_2_slider, self._widget.current_beta_2_label, msg.position[1], 'mm',
+                               self.tr_scale)
+        self._set_slider_value(self._widget.beta_3_slider, self._widget.current_beta_3_label, msg.position[2], 'mm',
+                               self.tr_scale)
+        self._set_slider_value(self._widget.alpha_1_slider, self._widget.current_alpha_1_label, msg.position[3], 'rad',
+                               self.rot_scale)
+        self._set_slider_value(self._widget.alpha_2_slider, self._widget.current_alpha_2_label, msg.position[4], 'rad',
+                               self.rot_scale)
+        self._set_slider_value(self._widget.alpha_3_slider, self._widget.current_alpha_3_label, msg.position[5], 'rad',
+                               self.rot_scale)
 
-    def _initialize_slider(self, slider, min_label, max_label, current_label, slider_range, single_step, value, unit):
-        slider.setMinimum(slider_range[0])
-        slider.setMaximum(slider_range[1])
+    def _initialize_slider(self, slider, min_label, max_label, current_label, slider_range, single_step, value, unit,
+                           factor):
+        slider.setMinimum(slider_range[0] * factor)
+        slider.setMaximum(slider_range[1] * factor)
         slider.setSingleStep(single_step)
         min_label.setText(str(slider_range[0]) + ' ' + unit)
         max_label.setText(str(slider_range[1]) + ' ' + unit)
-        self._set_slider_value(slider, current_label, value, unit)
+        self._set_slider_value(slider, current_label, value, unit, factor)
 
-    def _set_slider_value(self, slider, current_label, value, unit):
-        slider.setValue(value)
+    def _set_slider_value(self, slider, current_label, value, unit, factor):
+        slider.setValue(value * factor)
         current_label.setText(str(value) + ' ' + unit)
 
     def _unregister_publisher(self):
