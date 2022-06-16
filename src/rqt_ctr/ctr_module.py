@@ -10,7 +10,7 @@ from python_qt_binding.QtCore import Qt, QTimer, Slot
 from python_qt_binding.QtGui import QKeySequence
 from python_qt_binding.QtWidgets import QShortcut, QWidget
 from rqt_gui_py.plugin import Plugin
-
+from ctr_hardware_interface.CTR_Python.Tube import Tube
 import numpy as np
 
 
@@ -23,15 +23,24 @@ class CTRPlugin(Plugin):
         super(CTRPlugin, self).__init__(context)
         self.setObjectName('CTRPlugin')
 
-        self.tr_scale = 10
-        self.rot_scale = 1000
+        self.tr_scale = 10.0
+        self.rot_scale = 1000.0
 
-        beta_1_range = [-300.0, -6]
-        beta_1_init_value = -214.0
-        beta_2_range = [-150.0, -4]
-        beta_2_init_value = -102.0
-        beta_3_range = [-60, -2]
-        beta_3_init_value = -4.0
+        # Load ctr robot parameters
+        # Get parameters from ROS params
+        tube_0 = Tube(**rospy.get_param("/tube_0"))
+        tube_1 = Tube(**rospy.get_param("/tube_1"))
+        tube_2 = Tube(**rospy.get_param("/tube_2"))
+        self.ctr_parameters = [tube_0, tube_1, tube_2]
+
+        self.tube_lengths = np.array([-tube_0.L, -tube_1.L, -tube_2.L])
+
+        beta_1_range = [self.tube_lengths[0], -6.0]
+        beta_1_init_value = -122.574
+        beta_2_range = [self.tube_lengths[1], -4.0]
+        beta_2_init_value = -53.716
+        beta_3_range = [self.tube_lengths[2], -2.0]
+        beta_3_init_value = -3.85
         alpha_1_range = [-3.14, 3.14]
         alpha_1_init_value = 0
         alpha_2_range = [-3.14, 3.14]
@@ -62,7 +71,15 @@ class CTRPlugin(Plugin):
         self._publisher = rospy.Publisher(topic, JointState, queue_size=10)
 
         # Subscribe to actual joint values to update the values shown
-        self._subscriber = rospy.Subscriber("/joint_state", JointState, self._jointstate_callback)
+        #self._subscriber = rospy.Subscriber("/joint_state", JointState, self._jointstate_callback)
+
+        rospy.wait_for_service("/read_joint_states")
+        read_joints = rospy.ServiceProxy("/read_joint_states", Trigger)
+        try:
+            resp = read_joints()
+            print("Read joints called.")
+        except rospy.ServiceException as exc:
+            print("Service did not process request" + str(exc))
 
         self._widget.topic_line_edit.textChanged.connect(
             self._on_topic_changed)
@@ -138,13 +155,6 @@ class CTRPlugin(Plugin):
         self._widget.decrease_alpha_3_push_button.pressed.connect(
             self._on_decrease_alpha_3_pressed)
 
-        #rospy.wait_for_service("/read_joint_states")
-        #read_joints = rospy.ServiceProxy("/read_joint_states", Trigger)
-        #try:
-        #    resp = read_joints()
-        #except rospy.ServiceException as exc:
-        #    print("Service did not process request" + str(exc))
-
     @Slot(str)
     def _on_topic_changed(self, topic):
         topic = str(topic)
@@ -191,52 +201,64 @@ class CTRPlugin(Plugin):
         self._on_parameter_changed()
 
     def _on_increase_beta_1_pressed(self):
-        self._widget.beta_1_slider.setValue(
-            self._widget.beta_1_slider.value() + self._widget.beta_1_slider.singleStep() * 10)
+        val = self._widget.beta_1_slider.value() + self._widget.beta_1_slider.singleStep() * 10
+        self._set_slider_value(self._widget.beta_1_slider, self._widget.current_beta_1_label, val, 'mm',
+                               self.tr_scale)
 
     def _on_increase_beta_2_pressed(self):
-        self._widget.beta_2_slider.setValue(
-            self._widget.beta_2_slider.value() + self._widget.beta_2_slider.singleStep() * 10)
+        val = self._widget.beta_2_slider.value() + self._widget.beta_2_slider.singleStep() * 10
+        self._set_slider_value(self._widget.beta_2_slider, self._widget.current_beta_2_label, val, 'mm',
+                               self.tr_scale)
 
     def _on_increase_beta_3_pressed(self):
-        self._widget.beta_3_slider.setValue(
-            self._widget.beta_3_slider.value() + self._widget.beta_3_slider.singleStep() * 10)
+        val = self._widget.beta_3_slider.value() + self._widget.beta_3_slider.singleStep() * 10
+        self._set_slider_value(self._widget.beta_3_slider, self._widget.current_beta_3_label, val, 'mm',
+                               self.tr_scale)
 
     def _on_decrease_beta_1_pressed(self):
-        self._widget.beta_1_slider.setValue(
-            self._widget.beta_1_slider.value() - self._widget.beta_1_slider.singleStep() * 10)
+        val = self._widget.beta_1_slider.value() - self._widget.beta_1_slider.singleStep() * 10
+        self._set_slider_value(self._widget.beta_1_slider, self._widget.current_beta_1_label, val, 'mm',
+                               self.tr_scale)
 
     def _on_decrease_beta_2_pressed(self):
-        self._widget.beta_2_slider.setValue(
-            self._widget.beta_2_slider.value() - self._widget.beta_2_slider.singleStep() * 10)
+        val = self._widget.beta_2_slider.value() - self._widget.beta_2_slider.singleStep() * 10
+        self._set_slider_value(self._widget.beta_2_slider, self._widget.current_beta_2_label, val, 'mm',
+                               self.tr_scale)
 
     def _on_decrease_beta_3_pressed(self):
-        self._widget.beta_3_slider.setValue(
-            self._widget.beta_3_slider.value() - self._widget.beta_3_slider.singleStep() * 10)
+        val = self._widget.beta_3_slider.value() - self._widget.beta_3_slider.singleStep() * 10
+        self._set_slider_value(self._widget.beta_3_slider, self._widget.current_beta_3_label, val, 'mm',
+                               self.tr_scale)
 
     def _on_increase_alpha_1_pressed(self):
-        self._widget.alpha_1_slider.setValue(
-            self._widget.alpha_1_slider.value() + self._widget.alpha_1_slider.singleStep())
+        val = self._widget.alpha_1_slider.value() + self._widget.alpha_1_slider.singleStep()
+        self._set_slider_value(self._widget.alpha_1_slider, self._widget.current_alpha_1_label, val, 'rad',
+                               self.rot_scale)
 
     def _on_increase_alpha_2_pressed(self):
-        self._widget.alpha_2_slider.setValue(
-            self._widget.alpha_2_slider.value() + self._widget.alpha_2_slider.singleStep())
+        val = self._widget.alpha_2_slider.value() + self._widget.alpha_2_slider.singleStep()
+        self._set_slider_value(self._widget.alpha_2_slider, self._widget.current_alpha_2_label, val, 'rad',
+                               self.rot_scale)
 
     def _on_increase_alpha_3_pressed(self):
-        self._widget.alpha_3_slider.setValue(
-            self._widget.alpha_3_slider.value() + self._widget.alpha_3_slider.singleStep())
+        val = self._widget.alpha_3_slider.value() + self._widget.alpha_3_slider.singleStep()
+        self._set_slider_value(self._widget.alpha_3_slider, self._widget.current_alpha_3_label, val, 'rad',
+                               self.rot_scale)
 
     def _on_decrease_alpha_1_pressed(self):
-        self._widget.alpha_1_slider.setValue(
-            self._widget.alpha_1_slider.value() - self._widget.alpha_1_slider.singleStep())
+        val = self._widget.alpha_1_slider.value() - self._widget.alpha_1_slider.singleStep()
+        self._set_slider_value(self._widget.alpha_1_slider, self._widget.current_alpha_1_label, val, 'rad',
+                               self.rot_scale)
 
     def _on_decrease_alpha_2_pressed(self):
-        self._widget.alpha_2_slider.setValue(
-            self._widget.alpha_2_slider.value() - self._widget.alpha_2_slider.singleStep())
+        val = self._widget.alpha_2_slider.value() - self._widget.alpha_2_slider.singleStep()
+        self._set_slider_value(self._widget.alpha_2_slider, self._widget.current_alpha_2_label, val, 'rad',
+                               self.rot_scale)
 
     def _on_decrease_alpha_3_pressed(self):
-        self._widget.alpha_3_slider.setValue(
-            self._widget.alpha_3_slider.value() - self._widget.alpha_3_slider.singleStep())
+        val = self._widget.alpha_3_slider.value() - self._widget.alpha_3_slider.singleStep()
+        self._set_slider_value(self._widget.alpha_3_slider, self._widget.current_alpha_3_label, val, 'rad',
+                               self.rot_scale)
 
     def _on_parameter_changed(self):
         self._send_jointstate(
