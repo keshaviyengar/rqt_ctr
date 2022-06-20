@@ -24,7 +24,7 @@ class CTRPlugin(Plugin):
         self.setObjectName('CTRPlugin')
 
         self.tr_scale = 10.0
-        self.rot_scale = 1000.0
+        self.rot_scale = 100.0
 
         # Load ctr robot parameters
         # Get parameters from ROS params
@@ -33,20 +33,20 @@ class CTRPlugin(Plugin):
         tube_2 = Tube(**rospy.get_param("/tube_2"))
         self.ctr_parameters = [tube_0, tube_1, tube_2]
 
-        self.tube_lengths = np.array([-tube_0.L, -tube_1.L, -tube_2.L])
+        self.tube_lengths = np.array([tube_0.L, tube_1.L, tube_2.L]) * 1000
 
-        beta_1_range = [self.tube_lengths[0], -6.0]
-        beta_1_init_value = -122.574
-        beta_2_range = [self.tube_lengths[1], -4.0]
-        beta_2_init_value = -53.716
-        beta_3_range = [self.tube_lengths[2], -2.0]
-        beta_3_init_value = -3.85
+        beta_1_range = [-self.tube_lengths[0], -6.0]
+        beta_1_init_value = -122.574 * self.tr_scale
+        beta_2_range = [-self.tube_lengths[1], -4.0]
+        beta_2_init_value = -53.716 * self.tr_scale
+        beta_3_range = [-self.tube_lengths[2], -2.0]
+        beta_3_init_value = -3.85 * self.tr_scale
         alpha_1_range = [-3.14, 3.14]
-        alpha_1_init_value = 0
+        alpha_1_init_value = 0 * self.rot_scale
         alpha_2_range = [-3.14, 3.14]
-        alpha_2_init_value = 0
+        alpha_2_init_value = 0 * self.rot_scale
         alpha_3_range = [-3.14, 3.14]
-        alpha_3_init_value = 0
+        alpha_3_init_value = 0 * self.rot_scale
 
         # Create QWidget
         self._widget = QWidget()
@@ -71,13 +71,13 @@ class CTRPlugin(Plugin):
         self._publisher = rospy.Publisher(topic, JointState, queue_size=10)
 
         # Subscribe to actual joint values to update the values shown
-        #self._subscriber = rospy.Subscriber("/joint_state", JointState, self._jointstate_callback)
+        self._subscriber = rospy.Subscriber("/joint_state", JointState, self._jointstate_callback)
 
         rospy.wait_for_service("/read_joint_states")
         read_joints = rospy.ServiceProxy("/read_joint_states", Trigger)
+        print("Service found, reading for initialization.")
         try:
             resp = read_joints()
-            print("Read joints called.")
         except rospy.ServiceException as exc:
             print("Service did not process request" + str(exc))
 
@@ -201,32 +201,32 @@ class CTRPlugin(Plugin):
         self._on_parameter_changed()
 
     def _on_increase_beta_1_pressed(self):
-        val = self._widget.beta_1_slider.value() + self._widget.beta_1_slider.singleStep() * 10
+        val = self._widget.beta_1_slider.value() + self._widget.beta_1_slider.singleStep()
         self._set_slider_value(self._widget.beta_1_slider, self._widget.current_beta_1_label, val, 'mm',
                                self.tr_scale)
 
     def _on_increase_beta_2_pressed(self):
-        val = self._widget.beta_2_slider.value() + self._widget.beta_2_slider.singleStep() * 10
+        val = self._widget.beta_2_slider.value() + self._widget.beta_2_slider.singleStep()
         self._set_slider_value(self._widget.beta_2_slider, self._widget.current_beta_2_label, val, 'mm',
                                self.tr_scale)
 
     def _on_increase_beta_3_pressed(self):
-        val = self._widget.beta_3_slider.value() + self._widget.beta_3_slider.singleStep() * 10
+        val = self._widget.beta_3_slider.value() + self._widget.beta_3_slider.singleStep()
         self._set_slider_value(self._widget.beta_3_slider, self._widget.current_beta_3_label, val, 'mm',
                                self.tr_scale)
 
     def _on_decrease_beta_1_pressed(self):
-        val = self._widget.beta_1_slider.value() - self._widget.beta_1_slider.singleStep() * 10
+        val = self._widget.beta_1_slider.value() - self._widget.beta_1_slider.singleStep()
         self._set_slider_value(self._widget.beta_1_slider, self._widget.current_beta_1_label, val, 'mm',
                                self.tr_scale)
 
     def _on_decrease_beta_2_pressed(self):
-        val = self._widget.beta_2_slider.value() - self._widget.beta_2_slider.singleStep() * 10
+        val = self._widget.beta_2_slider.value() - self._widget.beta_2_slider.singleStep()
         self._set_slider_value(self._widget.beta_2_slider, self._widget.current_beta_2_label, val, 'mm',
                                self.tr_scale)
 
     def _on_decrease_beta_3_pressed(self):
-        val = self._widget.beta_3_slider.value() - self._widget.beta_3_slider.singleStep() * 10
+        val = self._widget.beta_3_slider.value() - self._widget.beta_3_slider.singleStep()
         self._set_slider_value(self._widget.beta_3_slider, self._widget.current_beta_3_label, val, 'mm',
                                self.tr_scale)
 
@@ -287,11 +287,14 @@ class CTRPlugin(Plugin):
         self._publisher.publish(jointstate)
 
     def _jointstate_callback(self, msg):
-        self._set_slider_value(self._widget.beta_1_slider, self._widget.current_beta_1_label, msg.position[0], 'mm',
+        self._set_slider_value(self._widget.beta_1_slider, self._widget.current_beta_1_label,
+                               msg.position[0] * self.tr_scale, 'mm',
                                self.tr_scale)
-        self._set_slider_value(self._widget.beta_2_slider, self._widget.current_beta_2_label, msg.position[1], 'mm',
+        self._set_slider_value(self._widget.beta_2_slider, self._widget.current_beta_2_label,
+                               msg.position[1] * self.tr_scale, 'mm',
                                self.tr_scale)
-        self._set_slider_value(self._widget.beta_3_slider, self._widget.current_beta_3_label, msg.position[2], 'mm',
+        self._set_slider_value(self._widget.beta_3_slider, self._widget.current_beta_3_label,
+                               msg.position[2] * self.tr_scale, 'mm',
                                self.tr_scale)
         self._set_slider_value(self._widget.alpha_1_slider, self._widget.current_alpha_1_label, msg.position[3], 'rad',
                                self.rot_scale)
@@ -310,8 +313,8 @@ class CTRPlugin(Plugin):
         self._set_slider_value(slider, current_label, value, unit, factor)
 
     def _set_slider_value(self, slider, current_label, value, unit, factor):
-        slider.setValue(value * factor)
-        current_label.setText(str(value) + ' ' + unit)
+        slider.setValue(value)
+        current_label.setText(str(value / factor) + ' ' + unit)
 
     def _unregister_publisher(self):
         if self._publisher is not None:
