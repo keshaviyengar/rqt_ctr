@@ -13,7 +13,7 @@
   <property name="windowTitle">
    <string>CTR Joint Command Interface</string>
   </property>
-  <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,0,0,0">
+  <layout class="QVBoxLayout" name="verticalLayout" stretch="0,0,0,0,0,0,0,0,0,0,0,0,0,0,0">
    <item>
     <layout class="QHBoxLayout" name="TopicName">
      <item>
@@ -1018,6 +1018,20 @@
       </widget>
      </item>
     </layout>
+   </item>
+   <item>
+    <widget class="QPushButton" name="sample_joint_position_button">
+     <property name="text">
+      <string>Sample Joint Position</string>
+     </property>
+    </widget>
+   </item>
+   <item>
+    <widget class="QPushButton" name="home_position_button">
+     <property name="text">
+      <string>Home Position</string>
+     </property>
+    </widget>
    </item>
   </layout>
  </widget>
